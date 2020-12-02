@@ -26,8 +26,10 @@ import java.nio.file.DirectoryStream;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.io.IOUtils;
 
 import com.dremio.common.utils.PathUtils;
 import com.dremio.exec.util.Utilities;
@@ -35,6 +37,8 @@ import com.dremio.io.file.FileAttributes;
 import com.dremio.io.file.FileSystem;
 import com.dremio.io.file.FileSystemUtils;
 import com.dremio.io.file.Path;
+import com.dremio.io.FSInputStream;
+
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -52,6 +56,10 @@ public class FileSelection {
   private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(FileSelection.class);
   public static final String PATH_SEPARATOR = System.getProperty("file.separator");
   private static final String WILD_CARD = "*";
+
+  public static final String MANIFEST_DIR_NAME = "_symlink_format_manifest";
+  public static final String MANIFEST_FILE_NAME = "manifest";
+
 
   private final ImmutableList<FileAttributes> fileAttributesList;
   private final String selectionRoot;
@@ -81,7 +89,7 @@ public class FileSelection {
   }
 
   /**
-   * Copy constructor for convenience.
+   * pi
    */
   protected FileSelection(final FileSelection selection) {
     Preconditions.checkNotNull(selection, "selection cannot be null");
@@ -110,7 +118,14 @@ public class FileSelection {
   }
 
   public List<FileAttributes> getAllDirectories() throws IOException {
-    return Lists.newArrayList(Iterables.filter(fileAttributesList, FileAttributes::isDirectory));
+    List<FileAttributes> items = Lists.newArrayList(Iterables.filter(fileAttributesList, FileAttributes::isDirectory));
+    logger.info("FileSelection.getAllDirectories()");
+    for (final FileAttributes attr: items) {
+      final Path currentPath = attr.getPath();
+      logger.info("FileSelection.getAllDirectories(), attr: {}", currentPath.getName());
+    }
+
+    return items;
   }
 
   public FileSelection minusDirectories() throws IOException {
@@ -165,6 +180,11 @@ public class FileSelection {
   }
 
   public static FileSelection create(final FileSystem fs, final List<String> fullPath) throws IOException {
+    logger.info("create(final FileSystem fs, final List<String> fullPath)");
+    for (String fpath : fullPath) {
+      logger.info("create(final FileSystem fs, final List<String> fullPath), fpath: {}", fpath);
+    }
+
     return create(fs, getPathBasedOnFullPath(fullPath));
   }
 
@@ -174,7 +194,30 @@ public class FileSelection {
     return create(fs, combined);
   }
 
+  public static ImmutableList<FileAttributes> extractFromManifestIfExists(final FileSystem fs, Path manifestDir) throws IOException {
+    // read from _symlink_format_manifest
+    logger.info("extractFromManifestIfExists(final FileSystem fs, Path manifestDir), path: {}", manifestDir.toString());
+    Path manifestFilePath = manifestDir.resolve(MANIFEST_FILE_NAME);
+    if (!fs.exists(manifestFilePath)) {
+      return null;
+    }
+
+    List<FileAttributes> fileAttributes = new ArrayList<FileAttributes>();
+
+    try (FSInputStream is = fs.open(manifestFilePath)) {
+      List<String> keys = IOUtils.readLines(is, "UTF-8");
+      for (String k : keys) {
+        logger.info("extractFromManifestIfExists(final FileSystem fs, Path manifestDir), data key: {}", k);
+        FileAttributes attr = fs.getFileAttributes(Path.of(k));
+        fileAttributes.add(attr);
+      }
+    }
+
+    return null;
+  }
+
   public static FileSelection create(final FileSystem fs, Path combined) throws IOException {
+    logger.info("create(final FileSystem fs, Path combined), combined: {}", combined.toString());
     Stopwatch timer = Stopwatch.createStarted();
 
     // NFS filesystems has delay before files written by executor shows up in the coordinator.
@@ -183,16 +226,28 @@ public class FileSelection {
     fs.exists(combined);
 
     final ImmutableList<FileAttributes> fileAttributes;
-    try(DirectoryStream<FileAttributes> stream = FileSystemUtils.globRecursive(fs, combined, NO_HIDDEN_FILES)) {
-      fileAttributes = ImmutableList.copyOf(stream);
-    } catch (DirectoryIteratorException e) {
-      throw e.getCause();
+    Path manifestDir = combined.resolve(MANIFEST_DIR_NAME);
+
+    if (fs.isDirectory(manifestDir) && fs.exists(manifestDir)) {
+      // read from _symlink_format_manifest
+      fileAttributes = extractFromManifestIfExists(fs, combined);
+    } else {
+      try(DirectoryStream<FileAttributes> stream = FileSystemUtils.globRecursive(fs, combined, NO_HIDDEN_FILES)) {
+        fileAttributes = ImmutableList.copyOf(stream);
+      } catch (DirectoryIteratorException e) {
+        throw e.getCause();
+      }
     }
 
     logger.trace("Returned files are: {}", fileAttributes);
     if (fileAttributes == null || fileAttributes.isEmpty()) {
       return null;
     }
+
+    for (FileAttributes attr : fileAttributes) {
+      logger.info("create(final FileSystem fs, Path combined), finaly filePath: {}", attr.getPath());
+    }
+
 
     final FileSelection fileSel = createFromExpanded(fileAttributes, combined.toURI().getPath());
     logger.debug("FileSelection.create() took {} ms ", timer.elapsed(TimeUnit.MILLISECONDS));
