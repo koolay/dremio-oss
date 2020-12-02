@@ -211,11 +211,12 @@ public class FileSelection {
       for (String k : keys) {
         logger.info("extractFromManifestIfExists(final FileSystem fs, Path manifestDir), data key: {}", k);
         FileAttributes attr = fs.getFileAttributes(Path.of(k));
+        logger.info("extractFromManifestIfExists(final FileSystem fs, getFileAttributes, path: {})", attr.getPath().toString());
         fileAttributes.add(attr);
       }
     }
 
-    return null;
+    return (ImmutableList<FileAttributes>)fileAttributes;
   }
 
   public static FileSelection create(final FileSystem fs, Path combined) throws IOException {
