@@ -199,6 +199,7 @@ public class FileSelection {
     logger.info("extractFromManifestIfExists(final FileSystem fs, Path manifestDir), path: {}", manifestDir.toString());
     Path manifestFilePath = manifestDir.resolve(MANIFEST_FILE_NAME);
     if (!fs.exists(manifestFilePath)) {
+      logger.info("manifest file not exists, file: {}", manifestFilePath.toString());
       return null;
     }
 
@@ -206,6 +207,7 @@ public class FileSelection {
 
     try (FSInputStream is = fs.open(manifestFilePath)) {
       List<String> keys = IOUtils.readLines(is, "UTF-8");
+      logger.info("extractFromManifestIfExists(final FileSystem fs, Path manifestDir), readLines: {}", keys.size());
       for (String k : keys) {
         logger.info("extractFromManifestIfExists(final FileSystem fs, Path manifestDir), data key: {}", k);
         FileAttributes attr = fs.getFileAttributes(Path.of(k));
@@ -230,7 +232,8 @@ public class FileSelection {
 
     if (fs.isDirectory(manifestDir) && fs.exists(manifestDir)) {
       // read from _symlink_format_manifest
-      fileAttributes = extractFromManifestIfExists(fs, combined);
+      logger.info("create manifest FileSelection, path: {}", manifestDir.toString());
+      fileAttributes = extractFromManifestIfExists(fs, manifestDir);
     } else {
       try(DirectoryStream<FileAttributes> stream = FileSystemUtils.globRecursive(fs, combined, NO_HIDDEN_FILES)) {
         fileAttributes = ImmutableList.copyOf(stream);
