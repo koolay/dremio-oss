@@ -119,10 +119,8 @@ public class FileSelection {
 
   public List<FileAttributes> getAllDirectories() throws IOException {
     List<FileAttributes> items = Lists.newArrayList(Iterables.filter(fileAttributesList, FileAttributes::isDirectory));
-    logger.info("FileSelection.getAllDirectories()");
     for (final FileAttributes attr: items) {
       final Path currentPath = attr.getPath();
-      logger.info("FileSelection.getAllDirectories(), attr: {}", currentPath.getName());
     }
 
     return items;
@@ -180,11 +178,6 @@ public class FileSelection {
   }
 
   public static FileSelection create(final FileSystem fs, final List<String> fullPath) throws IOException {
-    logger.info("create(final FileSystem fs, final List<String> fullPath)");
-    for (String fpath : fullPath) {
-      logger.info("create(final FileSystem fs, final List<String> fullPath), fpath: {}", fpath);
-    }
-
     return create(fs, getPathBasedOnFullPath(fullPath));
   }
 
@@ -194,12 +187,11 @@ public class FileSelection {
     return create(fs, combined);
   }
 
+  // Read from _symlink_format_manifest
   public static ImmutableList<FileAttributes> extractFromManifestIfExists(final FileSystem fs, Path manifestDir) throws IOException {
-    // read from _symlink_format_manifest
-    logger.info("extractFromManifestIfExists(final FileSystem fs, Path manifestDir), path: {}", manifestDir.toString());
+    logger.debug("extractFromManifestIfExists, manifestFilePath: {}", manifestDir.toString());
     Path manifestFilePath = manifestDir.resolve(MANIFEST_FILE_NAME);
     if (!fs.exists(manifestFilePath)) {
-      logger.info("manifest file not exists, file: {}", manifestFilePath.toString());
       return null;
     }
 
@@ -207,20 +199,19 @@ public class FileSelection {
 
     try (FSInputStream is = fs.open(manifestFilePath)) {
       List<String> keys = IOUtils.readLines(is, "UTF-8");
-      logger.info("extractFromManifestIfExists(final FileSystem fs, Path manifestDir), readLines: {}", keys.size());
       for (String k : keys) {
-        logger.info("extractFromManifestIfExists(final FileSystem fs, Path manifestDir), data key: {}", k);
-        FileAttributes attr = fs.getFileAttributes(Path.of(k));
-        logger.info("extractFromManifestIfExists(final FileSystem fs, getFileAttributes, path: {})", attr.getPath().toString());
+        URI uri = Path.toURI(k);
+        String keyPath = "/" + uri.getHost() + uri.getPath();
+        logger.debug("extractFromManifestIfExists, keyPath: {}", keyPath);
+        FileAttributes attr = fs.getFileAttributes(Path.of(keyPath));
         fileAttributes.add(attr);
       }
     }
 
-    return (ImmutableList<FileAttributes>)fileAttributes;
+    return ImmutableList.copyOf(fileAttributes);
   }
 
   public static FileSelection create(final FileSystem fs, Path combined) throws IOException {
-    logger.info("create(final FileSystem fs, Path combined), combined: {}", combined.toString());
     Stopwatch timer = Stopwatch.createStarted();
 
     // NFS filesystems has delay before files written by executor shows up in the coordinator.
@@ -233,7 +224,6 @@ public class FileSelection {
 
     if (fs.isDirectory(manifestDir) && fs.exists(manifestDir)) {
       // read from _symlink_format_manifest
-      logger.info("create manifest FileSelection, path: {}", manifestDir.toString());
       fileAttributes = extractFromManifestIfExists(fs, manifestDir);
     } else {
       try(DirectoryStream<FileAttributes> stream = FileSystemUtils.globRecursive(fs, combined, NO_HIDDEN_FILES)) {
@@ -246,10 +236,6 @@ public class FileSelection {
     logger.trace("Returned files are: {}", fileAttributes);
     if (fileAttributes == null || fileAttributes.isEmpty()) {
       return null;
-    }
-
-    for (FileAttributes attr : fileAttributes) {
-      logger.info("create(final FileSystem fs, Path combined), finaly filePath: {}", attr.getPath());
     }
 
 
