@@ -1,4 +1,4 @@
-FROM maven:3.6.8-jdk-8 AS MAVEN_BUILD 
+FROM maven:3.6.3-openjdk-8 AS MAVEN_BUILD 
 
 # copy the pom and src code to the container 
 COPY ./ ./  
