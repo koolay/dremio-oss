@@ -9,8 +9,7 @@ jobs:
       - restore_cache:
           keys:
             - v1-dependencies-{{ checksum "pom.xml" }}
-            - v1-dependencies-
-      - run: ./mvnw install -e -Dmaven.test.skip=true -DskipTests -Ddremio.oss-only=true -Dlicense.skip=true -Dcheckstyle.skip 
+      - run: mvn clean install -DskipTests -Ddremio.oss-only=true -Dlicense.skip=true -Dcheckstyle.skip -e
       - save_cache:
           paths:
             - ~/.m2
@@ -23,6 +22,6 @@ jobs:
 workflows:
   version: 2
 
-  build-then-test:
+  build-then:
     jobs:
       - build
