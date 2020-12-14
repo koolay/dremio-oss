@@ -18,6 +18,7 @@ jobs:
          root: ./
          paths:
            - target/
+      - run: ls -al target/
 
 workflows:
   version: 2
