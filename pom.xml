@@ -3233,6 +3233,10 @@ limitations under the License.
       <url>https://maven.dremio.com/public/</url>
     </repository>
     <repository>
+      <id>dremio-free</id>
+      <url>https://maven.dremio.com/free/</url>
+    </repository>
+    <repository>
       <id>redshift</id>
       <url>https://s3.amazonaws.com/redshift-maven-repository/release</url>
     </repository>
