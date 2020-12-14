@@ -9,7 +9,7 @@ jobs:
       - restore_cache:
           keys:
             - v1-dependencies-{{ checksum "pom.xml" }}
-      - run: mvn install -DskipTests -Ddremio.oss-only=true -Dlicense.skip=true -Dcheckstyle.skip -e
+      - run: mvn clean install -DskipTests -Ddremio.oss-only=true -Dlicense.skip=true -Dcheckstyle.skip -e
       - save_cache:
           paths:
             - ~/.m2
