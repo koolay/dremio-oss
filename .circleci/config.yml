@@ -3,7 +3,7 @@ version: 2.0
 jobs:
   build:
     docker:
-      - image: circleci/openjdk:stretch
+      - image: circleci/openjdk:8-buster
     steps:
       - checkout
       - restore_cache:
